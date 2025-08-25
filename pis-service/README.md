@@ -1,124 +1,229 @@
-# Product Information Service (PIS) - MVP
+# Product Information Service (PIS)
 
-A simplified backend service for aggregating and serving phone product data including specs, prices, availability, and reviews.
+A comprehensive backend service for aggregating and serving real electronics product data including specifications, prices, availability, and reviews. Features a web portal for browsing and comparing products.
 
-## Features
+## 🚀 Quick Start
 
-- Search phones by budget, OS, RAM, brand, and camera importance
-- View detailed product specifications and variants
-- Find best prices across multiple retailers (new and refurbished)
-- Aggregate review summaries with credibility scoring
-- Simple web interface for testing
-
-## Project Status
-
-✅ **Completed:**
-- Python/FastAPI project structure created
-- MongoDB models defined with Pydantic
-- API endpoints built (search, products, offers, reviews)
-- Web interface created with HTML/CSS/JS
-- Sample data seeding script ready with 5 phones
-
-## Setup Instructions
-
-### 1. Prerequisites
-- MongoDB installed via Homebrew
-- Conda environment created: `pis-service` with Python 3.11
-
-### 2. Start MongoDB
 ```bash
-brew services start mongodb-community
+# 1. Install dependencies
+make install
+
+# 2. Restore database with 100 real Amazon products (instant)
+make restore
+
+# 3. Run the API server
+make run
+
+# 4. In another terminal, run the portal (optional)
+cd ../phone-shopping-portal
+python server.py  # Runs on http://localhost:8080
 ```
 
-### 3. Activate Environment
+## ✨ Features
+
+### Core Functionality
+- **Product Search**: Search across 10 categories with filters for budget, brand, ratings
+- **Product Details**: View comprehensive specs, variants, and pricing
+- **Price Tracking**: Real-time pricing from Amazon via Rainforest API
+- **Review Aggregation**: Credibility-scored review summaries
+- **Product Comparison**: Side-by-side comparison of multiple products
+- **Favorites System**: Save and manage favorite products
+- **Categories**: Browse products by category (smartphones, laptops, tablets, etc.)
+
+### Data
+- **100 Real Products**: Actual Amazon products across 10 categories
+- **Real Pricing**: Live prices fetched from Amazon API
+- **190 Variants**: Different SKUs and configurations
+- **261 Reviews**: Aggregated review data
+- **1043 Offers**: Multiple pricing options per product
+
+## 📦 What's Included
+
+### API Endpoints (Port 8000)
+- `GET /api/v1/categories/` - List all product categories
+- `GET /api/v1/categories/{id}/top` - Get top products in a category
+- `GET /api/v1/search` - Search products with filters
+- `GET /api/v1/products/` - List products
+- `GET /api/v1/products/{id}` - Get product details
+- `GET /api/v1/products/{id}/variants` - Get product variants
+- `GET /api/v1/offers/variant/{id}` - Get offers for a variant
+- `GET /api/v1/reviews/product/{id}/summary` - Get review summary
+- `GET /api/v1/compare/` - Product comparison endpoints
+- `GET /api/v1/favorites/` - Favorites management
+
+### Web Portal (Port 8080)
+- **Categories View**: Browse products by category
+- **Search Interface**: Filter by budget, brand, specs
+- **Product Details**: Modal with full specifications
+- **Comparison Tool**: Compare up to 4 products
+- **Favorites**: Save products for later
+
+## 🛠️ Setup Options
+
+### Option 1: Quick Setup (Recommended)
+Use the included database dump for instant setup:
+
 ```bash
-conda activate pis-service
+make install   # Install Python dependencies
+make restore   # Restore database from dump (instant)
+make run       # Start API server
 ```
 
-### 4. Install Dependencies (if needed)
+### Option 2: Fresh Data from Amazon
+Fetch new data using web scraping and API:
+
 ```bash
+make install   # Install dependencies
+make seed      # Fetch fresh data from Amazon (slower, requires API key)
+make run       # Start server
+```
+
+### Option 3: Manual Setup
+```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 5. Seed Database
-```bash
-python seed_data.py
-```
+# Start MongoDB
+brew services start mongodb-community
 
-The seeding script can optionally fetch live pricing from Amazon via the
-[Rainforest API](https://www.rainforestapi.com/). To enable this, set
-the following environment variables before running the script:
+# Restore database
+mongorestore --db=pis_service --archive=pis_service_dump.archive
 
-```bash
-export AMAZON_API_KEY="your_rainforest_api_key"
-export AMAZON_API_DOMAIN="amazon.com"  # optional, defaults to amazon.com
-```
-
-If the variables are not set, the script will fall back to generated
-sample pricing data.
-
-### 6. Run Server
-```bash
+# Run server
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 7. Access Web Interface
-Open browser to: http://localhost:8000
+## 🔧 Configuration
 
-## API Endpoints
-
-- `GET /api/v1/search` - Search products with filters
-- `GET /api/v1/products/{id}` - Get product details
-- `GET /api/v1/offers/variant/{id}` - Get offers for a variant  
-- `GET /api/v1/reviews/product/{id}/summary` - Get review summary
-
-## Sample Data Included
-
-5 Android phones with full specs, variants, offers, and reviews:
-- Samsung Galaxy S23
-- Google Pixel 8
-- OnePlus 11
-- Motorola Edge 40
-- Nothing Phone (2)
-
-## Use Case Demo Flow
-
-1. **Search**: "I need an Android phone under $1000"
-2. **Filter**: By RAM, storage, brand preferences
-3. **Compare**: View spec ranges and scores
-4. **Reviews**: Check credibility-scored review summaries
-5. **Pricing**: Find best prices (new vs refurbished)
-6. **Availability**: Check store pickup vs shipping options
-
-## Project Structure
-
-```
-pis-service/
-├── app/
-│   ├── models/         # Pydantic models
-│   ├── routes/         # API endpoints
-│   ├── config.py       # Settings
-│   └── database.py     # MongoDB connection
-├── static/            # CSS/JS files
-├── templates/         # HTML templates
-├── seed_data.py       # Database seeding script
-└── requirements.txt   # Python dependencies
-```
-
-## Environment Variables
-
-```
+### Environment Variables (.env)
+```env
 MONGODB_URI=mongodb://localhost:27017
 DATABASE_NAME=pis_service
 PORT=8000
 ENV=development
-AMAZON_API_KEY=      # optional: API key for Amazon pricing (Rainforest API)
-AMAZON_API_DOMAIN=   # optional: Amazon domain (e.g. amazon.com)
+AMAZON_API_KEY=your_key_here      # Optional: For live pricing
+AMAZON_API_DOMAIN=amazon.com      # Optional: Amazon domain
 ```
 
-## Troubleshooting
+### Amazon API Integration
+To enable real-time pricing from Amazon:
+1. Get an API key from [Rainforest API](https://www.rainforestapi.com/)
+2. Add to `.env` file: `AMAZON_API_KEY=your_key_here`
+3. Run `make seed` to fetch fresh data with live prices
 
-If MongoDB connection fails:
+## 📊 Database Schema
+
+### Products Collection
+- `product_id`: Unique identifier
+- `name`: Product name
+- `category`: Product category
+- `brand`: Manufacturer
+- `specs`: Technical specifications
+- `price_range`: Min/max prices
+- `rating`: Average rating
+- `popularity_rank`: Rank within category
+
+### Categories Supported
+- Smartphones
+- Laptops
+- Tablets
+- Smartwatches
+- Headphones
+- Cameras
+- Gaming Consoles
+- Smart Home Devices
+- TVs
+- Speakers
+
+## 🧪 Testing
+
+```bash
+# Run all tests (21 test cases)
+make test
+
+# Run with server auto-start
+make test-with-server
+
+# Watch mode (auto-run on file changes)
+make watch-test
+```
+
+## 📁 Project Structure
+
+```
+phone-shopping-system/
+├── pis-service/                  # Backend API
+│   ├── app/
+│   │   ├── models/              # Pydantic models & schemas
+│   │   │   ├── product.py      # Product model
+│   │   │   ├── response.py     # Response models with field mapping
+│   │   │   └── ...
+│   │   ├── routes/              # API endpoints
+│   │   │   ├── products.py     # Product endpoints
+│   │   │   ├── search.py       # Search functionality
+│   │   │   ├── categories.py   # Category browsing
+│   │   │   ├── compare.py      # Comparison features
+│   │   │   └── ...
+│   │   ├── config.py           # Settings configuration
+│   │   ├── database.py         # MongoDB connection
+│   │   └── utils.py            # Utility functions
+│   ├── pis_service_dump.archive # Database dump (100 products)
+│   ├── seed_amazon_data.py     # Amazon data fetcher
+│   ├── test_system.py          # Comprehensive test suite
+│   ├── Makefile                # Build automation
+│   └── requirements.txt        # Python dependencies
+│
+└── phone-shopping-portal/       # Frontend
+    ├── index.html              # Main page
+    ├── js/app.js              # Application logic
+    ├── css/styles.css         # Styling
+    └── server.py              # No-cache development server
+```
+
+## 🚦 API Response Format
+
+All API responses use consistent field naming:
+- `product_id` instead of `_id` or `id`
+- `category_id` for category identifiers
+- `variant_id` for variant identifiers
+- Prices are integers (no cents)
+
+Example product response:
+```json
+{
+  "product_id": "68accf3e29bc02cb86c60b81",
+  "name": "Motorola Moto G Play 2024",
+  "category": "smartphones",
+  "brand": "Motorola",
+  "price_range": {
+    "min": 110,
+    "max": 132
+  },
+  "rating": 4.2,
+  "specs": {
+    "os": "Android",
+    "camera_mp": 50,
+    "ram_gb": 4
+  }
+}
+```
+
+## 🛠️ Makefile Commands
+
+```bash
+make help         # Show all available commands
+make install      # Install dependencies
+make restore      # Restore database from dump
+make seed         # Fetch fresh data from Amazon
+make run          # Start API server
+make test         # Run test suite
+make clean        # Clean cache files
+make dev          # Development mode with auto-reload
+```
+
+## 🐛 Troubleshooting
+
+### MongoDB Connection Issues
 ```bash
 # Check if MongoDB is running
 brew services list | grep mongodb
@@ -127,11 +232,37 @@ brew services list | grep mongodb
 brew services restart mongodb-community
 ```
 
-If conda environment issues:
+### Port Already in Use
 ```bash
-# Recreate environment
-conda env remove -n pis-service
-conda create -n pis-service python=3.11 -y
-conda activate pis-service
-pip install -r requirements.txt
+# Kill process on port 8000
+lsof -ti:8000 | xargs kill -9
+
+# Kill process on port 8080
+lsof -ti:8080 | xargs kill -9
 ```
+
+### Cache Issues
+The portal includes no-cache headers, but if you see stale content:
+1. Hard refresh browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows/Linux)
+2. Clear browser cache
+3. Check the version in `index.html`: `<script src="js/app.js?v=4"></script>`
+
+## 📝 License
+
+MIT
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📞 Support
+
+For issues and questions, please open an issue on GitHub.
+
+---
+
+Built with ❤️ using FastAPI, MongoDB, and real Amazon data
