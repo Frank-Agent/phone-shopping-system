@@ -1,14 +1,16 @@
 // API Configuration
-// Determine API base automatically based on the current host
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 // State Management
 const state = {
     searchResults: [],
-    compareList: [],
-    favorites: JSON.parse(localStorage.getItem('favorites') || '[]'),
-    currentView: 'search',
-    productCache: {}
+    compareSessionId: null,
+    compareProducts: [],
+    favorites: [],
+    currentView: 'categories',
+    productCache: {},
+    categories: [],
+    currentCategory: null
 };
 
 // DOM Elements
@@ -22,10 +24,12 @@ const modalContent = document.getElementById('modalContent');
 const favCount = document.getElementById('favCount');
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initializeEventListeners();
-    updateFavoritesCount();
-    performInitialSearch();
+    await loadFavorites();
+    loadCategories();
+    populateCategoryDropdown();
+    await initComparisonSession();
 });
 
 // Event Listeners
@@ -69,24 +73,147 @@ function switchView(view) {
     document.getElementById(`${view}View`).classList.add('active');
     
     // Load view-specific content
-    if (view === 'compare') {
+    if (view === 'categories') {
+        loadCategories();
+    } else if (view === 'compare') {
         renderCompareView();
     } else if (view === 'favorites') {
         renderFavoritesView();
     }
 }
 
-// Search Functionality
-async function performInitialSearch() {
-    await performSearch();
+// Categories Functions
+async function loadCategories() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/categories/`);
+        const data = await response.json();
+        state.categories = data.categories;
+        renderCategories();
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+        showError('Failed to load categories');
+    }
 }
+
+function renderCategories() {
+    const categoriesGrid = document.getElementById('categoriesGrid');
+    const categoryProducts = document.getElementById('categoryProducts');
+    
+    categoriesGrid.style.display = 'grid';
+    categoryProducts.style.display = 'none';
+    
+    categoriesGrid.innerHTML = state.categories.map(category => `
+        <div class="category-card" data-category="${category.category_id}">
+            <div class="category-name">${category.name}</div>
+            <div class="category-count">${category.product_count} products</div>
+            <div class="category-info">
+                ${category.avg_rating ? `<span>★ ${category.avg_rating}</span>` : ''}
+                ${category.price_range ? `<span>$${category.price_range.min}-$${category.price_range.max}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+    
+    // Add click handlers
+    categoriesGrid.querySelectorAll('.category-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const categoryId = card.dataset.category;
+            loadCategoryProducts(categoryId);
+        });
+    });
+}
+
+async function populateCategoryDropdown() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/categories/`);
+        const data = await response.json();
+        
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            // Keep the "All Categories" option and add the rest
+            const options = data.categories.map(cat => 
+                `<option value="${cat.category_id}">${cat.name}</option>`
+            ).join('');
+            
+            categorySelect.innerHTML = '<option value="">All Categories</option>' + options;
+        }
+    } catch (error) {
+        console.error('Failed to load categories for dropdown:', error);
+    }
+}
+
+async function loadCategoryProducts(categoryId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/categories/${categoryId}/top`);
+        const data = await response.json();
+        
+        state.currentCategory = data.category;
+        renderCategoryProducts(data.products);
+    } catch (error) {
+        console.error('Failed to load category products:', error);
+        showError('Failed to load products');
+    }
+}
+
+function renderCategoryProducts(products) {
+    const categoriesGrid = document.getElementById('categoriesGrid');
+    const categoryProducts = document.getElementById('categoryProducts');
+    const categoryTitle = document.getElementById('categoryTitle');
+    const categoryProductsGrid = document.getElementById('categoryProductsGrid');
+    
+    categoriesGrid.style.display = 'none';
+    categoryProducts.style.display = 'block';
+    categoryTitle.textContent = `${state.currentCategory.name} - Top Products`;
+    
+    categoryProductsGrid.innerHTML = products.map(product => createProductCard({
+        product_id: product.product_id,
+        brand: product.brand,
+        model_name: product.model_name,
+        specs: product.specs,
+        spec_ranges: {
+            price: product.price_range || {min: 0, max: 0},
+            ram: product.specs.ram || 'N/A',
+            storage: product.specs.storage || 'N/A',
+            display: product.specs.display ? 
+                `${product.specs.display.size_in || product.specs.display}" ${product.specs.display.refresh_hz || ''}Hz` : 'N/A',
+            battery: product.specs.battery ? `${product.specs.battery.capacity_mah || product.specs.battery} mAh` : 'N/A',
+            charging: product.specs.charging || 'N/A'
+        },
+        score: Math.round(product.rating * 20) || 0,
+        explanation: `Rank #${product.popularity_rank} in category`
+    })).join('');
+    
+    // Add event listeners
+    categoryProductsGrid.querySelectorAll('.product-card').forEach(card => {
+        const productId = card.dataset.productId;
+        const product = products.find(p => p.product_id === productId);
+        
+        card.querySelector('.btn-details').addEventListener('click', () => {
+            showProductDetails(productId);
+        });
+        
+        card.querySelector('.btn-compare').addEventListener('click', () => {
+            toggleCompare(product);
+        });
+        
+        card.querySelector('.btn-favorite').addEventListener('click', async (e) => {
+            await toggleFavorite(product);
+        });
+    });
+    
+    // Back button
+    document.getElementById('backToCategories').onclick = () => {
+        renderCategories();
+    };
+}
+
+// Search Functionality
 
 async function performSearch() {
     const formData = new FormData(searchForm);
     const params = new URLSearchParams();
     
     if (formData.get('budget')) params.append('budget_max', formData.get('budget'));
-    if (formData.get('os')) params.append('os', formData.get('os'));
+    if (formData.get('category')) params.append('category', formData.get('category'));
     if (formData.get('brand')) params.append('brand', formData.get('brand'));
     if (formData.get('minRam')) params.append('min_ram', formData.get('minRam'));
     if (formData.get('minStorage')) params.append('min_storage', formData.get('minStorage'));
@@ -137,19 +264,20 @@ function renderSearchResults(products) {
         });
         
         // Toggle Favorite
-        card.querySelector('.btn-favorite').addEventListener('click', (e) => {
-            toggleFavorite(product);
-            e.currentTarget.classList.toggle('active');
+        card.querySelector('.btn-favorite').addEventListener('click', async (e) => {
+            await toggleFavorite(product);
         });
     });
 }
 
 function createProductCard(product) {
-    const isFavorite = state.favorites.some(f => f.product_id === product.product_id);
-    const isInCompare = state.compareList.some(c => c.product_id === product.product_id);
+    // All endpoints now use product_id consistently
+    const productId = product.product_id;
+    const isFavorite = state.favorites.some(f => f.product_id === productId);
+    const isInCompare = state.compareProducts.some(c => c.product_id === productId);
     
     return `
-        <div class="product-card" data-product-id="${product.product_id}">
+        <div class="product-card" data-product-id="${productId}">
             <div class="product-header">
                 <div class="product-score">${Math.round(product.score)}</div>
                 <h3 class="product-title">${product.model_name}</h3>
@@ -157,33 +285,31 @@ function createProductCard(product) {
             </div>
             <div class="product-body">
                 <div class="price-range">
-                    $${product.spec_ranges.price.min} - $${product.spec_ranges.price.max}
+                    ${product.price_range ? 
+                        `$${product.price_range.min} - $${product.price_range.max}` :
+                        (product.spec_ranges?.price ? 
+                            `$${product.spec_ranges.price.min} - $${product.spec_ranges.price.max}` : 
+                            'Price N/A')}
                 </div>
                 <div class="specs-grid">
-                    <div class="spec-item">
-                        <span class="spec-label">RAM:</span>
-                        <span>${product.spec_ranges.ram}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Storage:</span>
-                        <span>${product.spec_ranges.storage}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Display:</span>
-                        <span>${product.spec_ranges.display}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Battery:</span>
-                        <span>${product.spec_ranges.battery}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Charging:</span>
-                        <span>${product.spec_ranges.charging}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">OS:</span>
-                        <span>${product.specs.os.value}</span>
-                    </div>
+                    ${product.rating ? `
+                        <div class="spec-item">
+                            <span class="spec-label">Rating:</span>
+                            <span>★ ${product.rating}</span>
+                        </div>
+                    ` : ''}
+                    ${product.category ? `
+                        <div class="spec-item">
+                            <span class="spec-label">Category:</span>
+                            <span>${product.category.replace(/_/g, ' ')}</span>
+                        </div>
+                    ` : ''}
+                    ${Object.entries(product.specs || {}).slice(0, 4).map(([key, value]) => `
+                        <div class="spec-item">
+                            <span class="spec-label">${key.replace(/_/g, ' ')}:</span>
+                            <span>${value}</span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
             <div class="product-actions">
@@ -206,11 +332,21 @@ async function showProductDetails(productId) {
     try {
         // Fetch product details
         const productResponse = await fetch(`${API_BASE_URL}/products/${productId}`);
+        if (!productResponse.ok) {
+            throw new Error('Failed to fetch product details');
+        }
         const productData = await productResponse.json();
         
-        // Fetch reviews
-        const reviewsResponse = await fetch(`${API_BASE_URL}/reviews/product/${productId}/summary`);
-        const reviewsData = await reviewsResponse.json();
+        // Try to fetch reviews, but don't fail if unavailable
+        let reviewsData = null;
+        try {
+            const reviewsResponse = await fetch(`${API_BASE_URL}/reviews/product/${productId}/summary`);
+            if (reviewsResponse.ok) {
+                reviewsData = await reviewsResponse.json();
+            }
+        } catch (reviewError) {
+            console.warn('Reviews not available for this product');
+        }
         
         renderProductModal(productData.product, reviewsData);
         productModal.classList.add('show');
@@ -223,247 +359,482 @@ async function showProductDetails(productId) {
 }
 
 function renderProductModal(product, reviews) {
-    const cameras = product.specs.cameras;
-    const rearCameras = cameras.rear.map(cam => 
-        `${cam.mp}MP ${cam.role}${cam.ois ? ' (OIS)' : ''}`
-    ).join(', ');
+    // Build specs HTML dynamically based on available specs
+    let specsHtml = '';
+    const specLabels = {
+        os: 'Operating System',
+        soc: 'Processor',
+        processor: 'Processor',
+        ram_gb: 'RAM',
+        storage_gb: 'Storage',
+        display_size: 'Display Size',
+        display: 'Display',
+        battery: 'Battery',
+        camera_mp: 'Camera',
+        cameras: 'Cameras',
+        ip_rating: 'IP Rating',
+        weight_g: 'Weight',
+        connectivity: 'Connectivity',
+        bands_5g: '5G Bands',
+        wifi: 'WiFi',
+        bluetooth: 'Bluetooth'
+    };
+    
+    // Generate spec items dynamically
+    for (const [key, value] of Object.entries(product.specs || {})) {
+        if (value !== null && value !== undefined) {
+            const label = specLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            let displayValue = value;
+            
+            // Format specific values
+            if (key === 'ram_gb' || key === 'storage_gb') {
+                displayValue = `${value} GB`;
+            } else if (key === 'weight_g') {
+                displayValue = `${value}g`;
+            } else if (key === 'camera_mp') {
+                displayValue = `${value} MP`;
+            } else if (key === 'display_size') {
+                displayValue = `${value}"`;
+            } else if (typeof value === 'object') {
+                displayValue = JSON.stringify(value);
+            }
+            
+            specsHtml += `
+                <div class="spec-item">
+                    <span class="spec-label">${label}:</span>
+                    <span>${displayValue}</span>
+                </div>
+            `;
+        }
+    }
+    
+    // If no specs, show a message
+    if (!specsHtml) {
+        specsHtml = '<p>No specifications available</p>';
+    }
     
     modalContent.innerHTML = `
         <div class="modal-header">
             <h2>${product.brand} ${product.model_name}</h2>
-            <p>Released: ${new Date(product.release_date).toLocaleDateString()}</p>
+            ${product.release_date ? `<p>Released: ${new Date(product.release_date).toLocaleDateString()}</p>` : ''}
         </div>
         <div class="modal-body">
             <div class="specs-section">
                 <h3>Specifications</h3>
                 <div class="specs-grid">
-                    <div class="spec-item">
-                        <span class="spec-label">OS:</span>
-                        <span>${product.specs.os.value}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Processor:</span>
-                        <span>${product.specs.soc.value}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">RAM:</span>
-                        <span>${product.specs.ram_gb.value} GB</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Storage:</span>
-                        <span>${product.specs.storage_gb.min}-${product.specs.storage_gb.max} GB</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Display:</span>
-                        <span>${product.specs.display.size_in}" ${product.specs.display.tech}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Refresh Rate:</span>
-                        <span>${product.specs.display.refresh_hz}Hz</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Battery:</span>
-                        <span>${product.specs.battery.capacity_mah} mAh</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Charging:</span>
-                        <span>${product.specs.battery.wired_charging_w}W wired${product.specs.battery.wireless_charging_w ? `, ${product.specs.battery.wireless_charging_w}W wireless` : ''}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Rear Cameras:</span>
-                        <span>${rearCameras}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Front Camera:</span>
-                        <span>${cameras.front.mp}MP</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">IP Rating:</span>
-                        <span>${product.specs.ip_rating}</span>
-                    </div>
-                    <div class="spec-item">
-                        <span class="spec-label">Weight:</span>
-                        <span>${product.specs.weight_g}g</span>
-                    </div>
+                    ${specsHtml}
                 </div>
             </div>
             
+            ${reviews && reviews.average_rating ? `
             <div class="reviews-section mt-3">
                 <h3>Reviews Summary</h3>
                 <div class="review-summary">
                     <p><strong>Average Rating:</strong> ${reviews.average_rating}/10</p>
-                    <p><strong>Coverage:</strong> ${reviews.coverage_level}</p>
-                    <p><strong>Sources:</strong> ${reviews.credibility_breakdown.pro_reviews} professional reviews</p>
+                    <p><strong>Coverage:</strong> ${reviews.coverage_level || 'N/A'}</p>
+                    ${reviews.credibility_breakdown ? 
+                        `<p><strong>Sources:</strong> ${reviews.credibility_breakdown.pro_reviews || 0} professional reviews</p>` : ''}
                     
+                    ${reviews.pro_consensus && reviews.pro_consensus.length > 0 ? `
                     <div class="mt-2">
                         <h4>Pros:</h4>
                         <ul>
                             ${reviews.pro_consensus.map(pro => `<li>${pro}</li>`).join('')}
                         </ul>
-                    </div>
+                    </div>` : ''}
                     
+                    ${reviews.con_consensus && reviews.con_consensus.length > 0 ? `
                     <div class="mt-2">
                         <h4>Cons:</h4>
                         <ul>
                             ${reviews.con_consensus.map(con => `<li>${con}</li>`).join('')}
                         </ul>
-                    </div>
+                    </div>` : ''}
                     
-                    <p class="mt-2">${reviews.summary}</p>
+                    ${reviews.summary ? `<p class="mt-2">${reviews.summary}</p>` : ''}
                 </div>
-            </div>
+            </div>` : ''}
         </div>
     `;
 }
 
 // Compare Functionality
-function toggleCompare(product) {
-    const index = state.compareList.findIndex(p => p.product_id === product.product_id);
-    
-    if (index > -1) {
-        state.compareList.splice(index, 1);
-    } else {
-        if (state.compareList.length >= 4) {
-            showError('You can compare up to 4 phones at a time.');
-            return;
-        }
-        state.compareList.push(product);
-    }
-    
-    if (state.currentView === 'compare') {
-        renderCompareView();
+async function initComparisonSession() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/compare/session`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        state.compareSessionId = data.session_id;
+    } catch (error) {
+        console.error('Failed to create comparison session:', error);
     }
 }
 
-function renderCompareView() {
-    if (state.compareList.length === 0) {
+async function toggleCompare(product) {
+    if (!state.compareSessionId) {
+        await initComparisonSession();
+    }
+    
+    const productId = product.product_id;
+    const isInCompare = state.compareProducts.some(p => p.product_id === productId);
+    
+    try {
+        if (isInCompare) {
+            // Remove from comparison
+            const response = await fetch(
+                `${API_BASE_URL}/compare/session/${state.compareSessionId}/remove/${productId}`,
+                { method: 'DELETE' }
+            );
+            
+            if (response.ok) {
+                state.compareProducts = state.compareProducts.filter(
+                    p => p.product_id !== productId
+                );
+                updateCompareButtons();
+            }
+        } else {
+            // Add to comparison
+            const response = await fetch(
+                `${API_BASE_URL}/compare/session/${state.compareSessionId}/add`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId })
+                }
+            );
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            state.compareProducts.push(product);
+            updateCompareButtons();
+        }
+        
+        if (state.currentView === 'compare') {
+            await renderCompareView();
+        }
+    } catch (error) {
+        console.error('Compare error:', error);
+        showError('Failed to update comparison');
+    }
+}
+
+function updateCompareButtons() {
+    document.querySelectorAll('.btn-compare').forEach(btn => {
+        const card = btn.closest('.product-card');
+        if (card) {
+            const productId = card.dataset.productId;
+            const isInCompare = state.compareProducts.some(
+                p => p.product_id === productId
+            );
+            
+            btn.classList.toggle('active', isInCompare);
+            btn.textContent = isInCompare ? 'In Compare' : 'Compare';
+        }
+    });
+}
+
+async function renderCompareView() {
+    if (!state.compareSessionId || state.compareProducts.length === 0) {
         compareGrid.innerHTML = '';
         document.getElementById('compareMessage').style.display = 'block';
         return;
     }
     
-    document.getElementById('compareMessage').style.display = 'none';
-    
-    compareGrid.innerHTML = `
-        <table class="compare-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--border);">Feature</th>
-                    ${state.compareList.map(p => `
-                        <th style="padding: 1rem; text-align: center; border-bottom: 2px solid var(--border);">
-                            ${p.brand} ${p.model_name}
-                            <button onclick="removeFromCompare('${p.product_id}')" style="margin-left: 0.5rem; color: var(--danger); border: none; background: none; cursor: pointer;">✕</button>
-                        </th>
-                    `).join('')}
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Price Range</strong></td>
-                    ${state.compareList.map(p => `
+    try {
+        // Fetch comparison data from server
+        const response = await fetch(
+            `${API_BASE_URL}/compare/session/${state.compareSessionId}`
+        );
+        const data = await response.json();
+        
+        if (!data.products || data.products.length === 0) {
+            compareGrid.innerHTML = '';
+            document.getElementById('compareMessage').style.display = 'block';
+            return;
+        }
+        
+        document.getElementById('compareMessage').style.display = 'none';
+        
+        const comparison = data.comparison;
+        const products = data.products;
+        
+        // Build comparison table
+        let tableHTML = `
+            <div class="comparison-container">
+                <table class="compare-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--border); width: 200px;">Feature</th>
+                            ${products.map(p => `
+                                <th style="padding: 1rem; text-align: center; border-bottom: 2px solid var(--border);">
+                                    <div>${p.brand} ${p.model_name}</div>
+                                    <button onclick="removeFromCompare('${p.product_id}')" style="margin-top: 0.5rem; color: var(--danger); border: none; background: none; cursor: pointer;">✕ Remove</button>
+                                </th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        // Basic Info Section
+        tableHTML += `
+            <tr class="section-header">
+                <td colspan="${products.length + 1}" style="padding: 0.75rem; background: var(--light); font-weight: bold;">Basic Information</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Category</strong></td>
+                ${products.map(p => `
+                    <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
+                        ${comparison.basic_info[p.product_id]?.category || '—'}
+                    </td>
+                `).join('')}
+            </tr>
+        `;
+        
+        // Pricing Section
+        tableHTML += `
+            <tr class="section-header">
+                <td colspan="${products.length + 1}" style="padding: 0.75rem; background: var(--light); font-weight: bold;">Pricing</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Price Range</strong></td>
+                ${products.map(p => {
+                    const pricing = comparison.pricing[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            $${p.spec_ranges.price.min} - $${p.spec_ranges.price.max}
+                            $${pricing?.min || 0} - $${pricing?.max || 0}
                         </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Score</strong></td>
-                    ${state.compareList.map(p => `
+                    `;
+                }).join('')}
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Best Price</strong></td>
+                ${products.map(p => {
+                    const pricing = comparison.pricing[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${Math.round(p.score)}
+                            ${pricing?.best_price ? `$${pricing.best_price}` : '—'}
+                            ${pricing?.retailer ? `<br><small>${pricing.retailer}</small>` : ''}
                         </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>OS</strong></td>
-                    ${state.compareList.map(p => `
+                    `;
+                }).join('')}
+            </tr>
+        `;
+        
+        // Ratings Section
+        tableHTML += `
+            <tr class="section-header">
+                <td colspan="${products.length + 1}" style="padding: 0.75rem; background: var(--light); font-weight: bold;">Ratings & Reviews</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Average Rating</strong></td>
+                ${products.map(p => {
+                    const rating = comparison.ratings[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.specs.os.value}
+                            ${rating?.average ? `★ ${rating.average}` : '—'}
                         </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Processor</strong></td>
-                    ${state.compareList.map(p => `
+                    `;
+                }).join('')}
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Reviews</strong></td>
+                ${products.map(p => {
+                    const rating = comparison.ratings[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.specs.soc.value}
+                            ${rating?.review_count || 0} reviews
                         </td>
-                    `).join('')}
+                    `;
+                }).join('')}
+            </tr>
+        `;
+        
+        // Specifications Section
+        if (comparison.specs) {
+            const specKeys = new Set();
+            Object.values(comparison.specs).forEach(specs => {
+                Object.keys(specs).forEach(key => specKeys.add(key));
+            });
+            
+            tableHTML += `
+                <tr class="section-header">
+                    <td colspan="${products.length + 1}" style="padding: 0.75rem; background: var(--light); font-weight: bold;">Specifications</td>
                 </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>RAM</strong></td>
-                    ${state.compareList.map(p => `
+            `;
+            
+            specKeys.forEach(key => {
+                const label = comparison.spec_labels?.[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                tableHTML += `
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>${label}</strong></td>
+                        ${products.map(p => `
+                            <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
+                                ${comparison.specs[p.product_id]?.[key] || '—'}
+                            </td>
+                        `).join('')}
+                    </tr>
+                `;
+            });
+        }
+        
+        // Availability Section
+        tableHTML += `
+            <tr class="section-header">
+                <td colspan="${products.length + 1}" style="padding: 0.75rem; background: var(--light); font-weight: bold;">Availability</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Variants</strong></td>
+                ${products.map(p => {
+                    const avail = comparison.availability[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.spec_ranges.ram}
+                            ${avail?.variants || 0} options
                         </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Storage</strong></td>
-                    ${state.compareList.map(p => `
+                    `;
+                }).join('')}
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Offers</strong></td>
+                ${products.map(p => {
+                    const avail = comparison.availability[p.product_id];
+                    return `
                         <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.spec_ranges.storage}
+                            ${avail?.offers || 0} retailers
                         </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Display</strong></td>
-                    ${state.compareList.map(p => `
-                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.spec_ranges.display}
-                        </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Battery</strong></td>
-                    ${state.compareList.map(p => `
-                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.spec_ranges.battery}
-                        </td>
-                    `).join('')}
-                </tr>
-                <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>Charging</strong></td>
-                    ${state.compareList.map(p => `
-                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">
-                            ${p.spec_ranges.charging}
-                        </td>
-                    `).join('')}
-                </tr>
-            </tbody>
-        </table>
-    `;
+                    `;
+                }).join('')}
+            </tr>
+        `;
+        
+        tableHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        compareGrid.innerHTML = tableHTML;
+        
+    } catch (error) {
+        console.error('Failed to render comparison:', error);
+        showError('Failed to load comparison data');
+    }
 }
 
-window.removeFromCompare = function(productId) {
-    state.compareList = state.compareList.filter(p => p.product_id !== productId);
-    renderCompareView();
+window.removeFromCompare = async function(productId) {
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/compare/session/${state.compareSessionId}/remove/${productId}`,
+            { method: 'DELETE' }
+        );
+        
+        if (response.ok) {
+            state.compareProducts = state.compareProducts.filter(
+                p => (p._id || p.product_id) !== productId
+            );
+            updateCompareButtons();
+            await renderCompareView();
+        }
+    } catch (error) {
+        console.error('Failed to remove from comparison:', error);
+    }
 };
 
 // Favorites Functionality
-function toggleFavorite(product) {
-    const index = state.favorites.findIndex(f => f.product_id === product.product_id);
-    
-    if (index > -1) {
-        state.favorites.splice(index, 1);
-    } else {
-        state.favorites.push(product);
-    }
-    
-    localStorage.setItem('favorites', JSON.stringify(state.favorites));
-    updateFavoritesCount();
-    
-    if (state.currentView === 'favorites') {
-        renderFavoritesView();
+async function loadFavorites() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/favorites/`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        state.favorites = data.favorites.map(f => f.product);
+        updateFavoritesCount();
+    } catch (error) {
+        console.error('Failed to load favorites:', error);
+        state.favorites = [];
+        updateFavoritesCount();
     }
 }
 
-function updateFavoritesCount() {
-    favCount.textContent = state.favorites.length;
-    favCount.style.display = state.favorites.length > 0 ? 'flex' : 'none';
+async function toggleFavorite(product) {
+    const productId = product.product_id;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/favorites/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ product_id: productId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.is_favorite) {
+            // Add to local state
+            if (!state.favorites.some(f => f.product_id === productId)) {
+                state.favorites.push(product);
+            }
+        } else {
+            // Remove from local state
+            state.favorites = state.favorites.filter(
+                f => f.product_id !== productId
+            );
+        }
+        
+        updateFavoritesCount();
+        updateFavoriteButtons();
+        
+        if (state.currentView === 'favorites') {
+            renderFavoritesView();
+        }
+    } catch (error) {
+        console.error('Failed to toggle favorite:', error);
+        showError('Failed to update favorites');
+    }
 }
 
-function renderFavoritesView() {
+function updateFavoriteButtons() {
+    document.querySelectorAll('.btn-favorite').forEach(btn => {
+        const card = btn.closest('.product-card');
+        if (card) {
+            const productId = card.dataset.productId;
+            const isFavorite = state.favorites.some(
+                f => f.product_id === productId
+            );
+            
+            btn.classList.toggle('active', isFavorite);
+            btn.innerHTML = isFavorite ? '❤️' : '🤍';
+        }
+    });
+}
+
+async function updateFavoritesCount() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/favorites/count`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        favCount.textContent = data.count;
+        favCount.style.display = data.count > 0 ? 'flex' : 'none';
+    } catch (error) {
+        // Fallback to local state
+        favCount.textContent = state.favorites.length;
+        favCount.style.display = state.favorites.length > 0 ? 'flex' : 'none';
+    }
+}
+
+async function renderFavoritesView() {
+    // Reload favorites from server
+    await loadFavorites();
+    
     if (state.favorites.length === 0) {
         favoritesGrid.innerHTML = '';
         document.getElementById('favoritesMessage').style.display = 'block';
@@ -486,9 +857,8 @@ function renderFavoritesView() {
             toggleCompare(product);
         });
         
-        card.querySelector('.btn-favorite').addEventListener('click', () => {
-            toggleFavorite(product);
-            renderFavoritesView();
+        card.querySelector('.btn-favorite').addEventListener('click', async () => {
+            await toggleFavorite(product);
         });
     });
 }

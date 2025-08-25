@@ -3,19 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Phone Shopping Portal</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css?v=<?php echo time(); ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="container">
             <div class="logo">
-                <h1>📱 PhoneShop</h1>
-                <span class="tagline">Find Your Perfect Phone</span>
+                <h1>🛍️ ElectroShop</h1>
+                <span class="tagline">Your Electronics Marketplace</span>
             </div>
             <nav>
-                <button class="nav-btn active" data-view="search">Search</button>
+                <button class="nav-btn active" data-view="categories">Categories</button>
+                <button class="nav-btn" data-view="search">Search</button>
                 <button class="nav-btn" data-view="compare">Compare</button>
                 <button class="nav-btn" data-view="favorites">Favorites <span id="favCount" class="badge">0</span></button>
             </nav>
@@ -23,8 +27,19 @@
     </header>
 
     <main class="container">
+        <!-- Categories View -->
+        <section id="categoriesView" class="view active">
+            <h2>Browse by Category</h2>
+            <div id="categoriesGrid" class="categories-grid"></div>
+            <div id="categoryProducts" class="category-products" style="display: none;">
+                <button class="btn btn-secondary" id="backToCategories">← Back to Categories</button>
+                <h3 id="categoryTitle"></h3>
+                <div id="categoryProductsGrid" class="results-grid"></div>
+            </div>
+        </section>
+
         <!-- Search View -->
-        <section id="searchView" class="view active">
+        <section id="searchView" class="view">
             <div class="search-panel">
                 <h2>Find Your Perfect Phone</h2>
                 <form id="searchForm">
@@ -35,24 +50,16 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="os">Operating System</label>
-                            <select id="os" name="os">
-                                <option value="">Any</option>
-                                <option value="Android">Android</option>
-                                <option value="iOS">iOS</option>
+                            <label for="category">Category</label>
+                            <select id="category" name="category">
+                                <option value="">All Categories</option>
+                                <!-- Categories will be loaded dynamically -->
                             </select>
                         </div>
                         
                         <div class="form-group">
                             <label for="brand">Brand</label>
-                            <select id="brand" name="brand">
-                                <option value="">Any</option>
-                                <option value="Samsung">Samsung</option>
-                                <option value="Google">Google</option>
-                                <option value="OnePlus">OnePlus</option>
-                                <option value="Motorola">Motorola</option>
-                                <option value="Nothing">Nothing</option>
-                            </select>
+                            <input type="text" id="brand" name="brand" placeholder="e.g., Apple, Samsung">
                         </div>
                         
                         <div class="form-group">
@@ -129,10 +136,10 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 PhoneShop Portal | Powered by PIS API</p>
+            <p>&copy; 2024 ElectroShop Portal | Powered by PIS API</p>
         </div>
     </footer>
 
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=4"></script>
 </body>
 </html>

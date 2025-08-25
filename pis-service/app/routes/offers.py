@@ -21,6 +21,8 @@ async def get_variant_offers(
     for offer in offers:
         offer["_id"] = str(offer["_id"])
         offer["variant_id"] = str(offer["variant_id"])
+        if "price_amount" in offer:
+            offer["price_amount"] = round(offer["price_amount"], 2)
     
     best_new = next((o for o in offers if o["condition"] == "new"), None)
     best_refurb = next((o for o in offers if o["condition"] == "refurbished"), None)

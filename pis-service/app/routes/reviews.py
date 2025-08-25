@@ -27,17 +27,17 @@ async def get_review_summary(product_id: str) -> Dict[str, Any]:
             "reviews": []
         }
     
-    pro_reviews = [r for r in reviews if r["source_type"] == "pro-review"]
-    user_reviews = [r for r in reviews if r["source_type"] == "user-review"]
+    pro_reviews = [r for r in reviews if r.get("source_type") == "pro-review"]
+    user_reviews = [r for r in reviews if r.get("source_type") == "user-review" or r.get("source_type") is None]
     
     coverage_level = "low"
-    if len(pro_reviews) >= 3:
+    if len(reviews) >= 10:
         coverage_level = "high"
-    elif len(pro_reviews) >= 2:
+    elif len(reviews) >= 5:
         coverage_level = "medium"
     
-    avg_rating = sum(r["rating"] for r in reviews) / len(reviews) if reviews else 0
-    avg_credibility = sum(r["credibility_score"] for r in reviews) / len(reviews) if reviews else 0
+    avg_rating = sum(r.get("rating", 0) for r in reviews) / len(reviews) if reviews else 0
+    avg_credibility = sum(r.get("credibility_score", 7) for r in reviews) / len(reviews) if reviews else 0
     
     all_pros = []
     all_cons = []
@@ -66,11 +66,11 @@ async def get_review_summary(product_id: str) -> Dict[str, Any]:
     review_list = []
     for review in reviews[:5]:
         review_list.append({
-            "source": review["source"],
-            "type": review["source_type"],
-            "rating": review["rating"],
-            "credibility": review["credibility_score"],
-            "summary": review.get("summary", ""),
+            "source": review.get("source", review.get("reviewer_name", "User")),
+            "type": review.get("source_type", "user-review"),
+            "rating": review.get("rating", 0),
+            "credibility": review.get("credibility_score", 7),
+            "summary": review.get("summary", review.get("comment", "")),
             "url": review.get("url", "")
         })
     

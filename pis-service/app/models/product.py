@@ -66,13 +66,21 @@ class ProductSpecs(BaseModel):
 
 class Product(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    category: str = "phone"
+    name: str  # Full product name from Amazon
+    description: Optional[str] = None  # Product description
+    category: str  # smartphones, laptops, tablets, smartwatches, headphones, cameras, gaming_consoles, smart_home, tvs, speakers
     brand: str
     series: Optional[str] = None
     model_name: str
+    image_url: Optional[str] = None  # Main product image URL
+    asin: Optional[str] = None  # Amazon ASIN
     release_date: Optional[datetime] = None
+    price_range: Optional[Dict[str, float]] = None  # min/max prices
+    rating: Optional[float] = None  # average rating
+    popularity_rank: Optional[int] = None  # rank within category
     default_variant_id: Optional[PyObjectId] = None
-    specs: ProductSpecs
+    specs: Dict[str, Any] = {}  # Made flexible for different categories
+    tags: List[str] = []  # Product tags
     images: List[Dict[str, Any]] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from bson import ObjectId
 from app.database import db
+from app.models.response import ProductResponse, VariantResponse
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("/", response_model=List[ProductResponse])
 async def get_products(
     category: Optional[str] = Query(None),
     brand: Optional[str] = Query(None),
@@ -18,13 +19,7 @@ async def get_products(
         filter_query["brand"] = {"$regex": brand, "$options": "i"}
     
     products = await db.products.find(filter_query).limit(limit).to_list(limit)
-    
-    for product in products:
-        product["_id"] = str(product["_id"])
-        if product.get("default_variant_id"):
-            product["default_variant_id"] = str(product["default_variant_id"])
-    
-    return products
+    return [ProductResponse(**product) for product in products]
 
 @router.get("/{product_id}")
 async def get_product(product_id: str):
@@ -35,19 +30,25 @@ async def get_product(product_id: str):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    product["_id"] = str(product["_id"])
-    if product.get("default_variant_id"):
-        product["default_variant_id"] = str(product["default_variant_id"])
-    
     variants = await db.variants.find({"product_id": ObjectId(product_id)}).to_list(100)
-    for variant in variants:
-        variant["_id"] = str(variant["_id"])
-        variant["product_id"] = str(variant["product_id"])
     
     return {
-        "product": product,
-        "variants": variants,
+        "product": ProductResponse(**product),
+        "variants": [VariantResponse(**variant) for variant in variants],
         "total_variants": len(variants)
+    }
+
+@router.get("/{product_id}/variants", response_model=Dict[str, Any])
+async def get_product_variants(product_id: str):
+    if not ObjectId.is_valid(product_id):
+        raise HTTPException(status_code=400, detail="Invalid product ID")
+    
+    variants = await db.variants.find({"product_id": ObjectId(product_id)}).to_list(100)
+    
+    return {
+        "product_id": product_id,
+        "variants": [VariantResponse(**variant) for variant in variants],
+        "total": len(variants)
     }
 
 @router.get("/{product_id}/specs/{spec_path}/provenance")
