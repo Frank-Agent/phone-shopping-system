@@ -1,14 +1,60 @@
 import asyncio
 from datetime import datetime, timedelta
 import random
+import os
+from typing import Optional
+
+import httpx
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
+
 from app.config import settings
 from app.models import Product, ProductSpecs, Display, Battery, Camera, Connectivity
 from app.models import Variant, Offer, Review
 
 client = AsyncIOMotorClient(settings.mongodb_uri)
 db = client[settings.database_name]
+
+
+async def fetch_amazon_price(model_name: str) -> Optional[float]:
+    """Fetch the latest price from Amazon for the given model name.
+
+    The function uses the Rainforest API (a wrapper around the Amazon
+    Product Advertising API) if the environment variable `AMAZON_API_KEY`
+    is set. If the API call fails or no price is found, the function
+    returns ``None`` and the caller can decide how to handle pricing.
+    """
+
+    api_key = os.getenv("AMAZON_API_KEY")
+    if not api_key:
+        return None
+
+    params = {
+        "api_key": api_key,
+        "type": "search",
+        "amazon_domain": os.getenv("AMAZON_API_DOMAIN", "amazon.com"),
+        "search_term": model_name,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get("https://api.rainforestapi.com/request", params=params)
+            data = response.json()
+    except Exception:
+        return None
+
+    results = data.get("search_results") or []
+    if not results:
+        return None
+
+    price_info = results[0].get("price") or {}
+    amount = price_info.get("value")
+    if amount is None:
+        return None
+    try:
+        return float(amount)
+    except (TypeError, ValueError):
+        return None
 
 sample_phones = [
     {
@@ -292,10 +338,16 @@ async def seed_database():
             
             retailers = ["amazon", "bestbuy", "samsung", "walmart"]
             base_price = variant_data["price"]
-            
+
             for retailer in retailers:
                 price_variation = random.uniform(-0.05, 0.05)
                 retailer_price = round(base_price * (1 + price_variation))
+
+                if retailer == "amazon":
+                    amazon_price = await fetch_amazon_price(product_doc["model_name"])
+                    if amazon_price is not None:
+                        retailer_price = int(round(amazon_price))
+
                 has_discount = random.random() > 0.7
                 is_refurbished = random.random() > 0.85
                 
