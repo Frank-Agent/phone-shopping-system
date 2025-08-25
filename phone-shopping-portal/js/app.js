@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Determine API base automatically based on the current host
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
 
 // State Management
 const state = {

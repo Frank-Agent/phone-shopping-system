@@ -45,6 +45,18 @@ pip install -r requirements.txt
 python seed_data.py
 ```
 
+The seeding script can optionally fetch live pricing from Amazon via the
+[Rainforest API](https://www.rainforestapi.com/). To enable this, set
+the following environment variables before running the script:
+
+```bash
+export AMAZON_API_KEY="your_rainforest_api_key"
+export AMAZON_API_DOMAIN="amazon.com"  # optional, defaults to amazon.com
+```
+
+If the variables are not set, the script will fall back to generated
+sample pricing data.
+
 ### 6. Run Server
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -100,6 +112,8 @@ MONGODB_URI=mongodb://localhost:27017
 DATABASE_NAME=pis_service
 PORT=8000
 ENV=development
+AMAZON_API_KEY=      # optional: API key for Amazon pricing (Rainforest API)
+AMAZON_API_DOMAIN=   # optional: Amazon domain (e.g. amazon.com)
 ```
 
 ## Troubleshooting
