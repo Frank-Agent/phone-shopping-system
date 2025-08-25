@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Information Service</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Product Information Service (PIS)</h1>
+        <p class="subtitle">Phone Shopping Assistant - MVP Demo</p>
+        
+        <div class="search-section">
+            <h2>Search Phones</h2>
+            <form id="searchForm">
+                <div class="form-group">
+                    <label for="budgetMax">Max Budget ($)</label>
+                    <input type="number" id="budgetMax" name="budgetMax" placeholder="e.g., 1000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="os">Operating System</label>
+                    <select id="os" name="os">
+                        <option value="">Any</option>
+                        <option value="Android">Android</option>
+                        <option value="iOS">iOS</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="minRam">Min RAM (GB)</label>
+                    <input type="number" id="minRam" name="minRam" placeholder="e.g., 8">
+                </div>
+                
+                <div class="form-group">
+                    <label for="brand">Brand</label>
+                    <input type="text" id="brand" name="brand" placeholder="e.g., Samsung">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cameraImportance">Camera Importance</label>
+                    <select id="cameraImportance" name="cameraImportance">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                
+                <button type="submit">Search</button>
+            </form>
+        </div>
+        
+        <div id="results" class="results-section"></div>
+        
+        <div id="productDetails" class="details-section" style="display: none;">
+            <h2>Product Details</h2>
+            <div id="detailsContent"></div>
+        </div>
+        
+        <div id="offers" class="offers-section" style="display: none;">
+            <h2>Available Offers</h2>
+            <div id="offersContent"></div>
+        </div>
+        
+        <div id="reviews" class="reviews-section" style="display: none;">
+            <h2>Review Summary</h2>
+            <div id="reviewsContent"></div>
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
