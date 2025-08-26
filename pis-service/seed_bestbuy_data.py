@@ -273,7 +273,7 @@ async def seed_database():
         "smartwatches": "pcmcat321000050004",  # Smart Watches
         "headphones": "abcat0204000",  # Headphones
         "cameras": "abcat0401000",  # Digital Cameras
-        "gaming": "abcat0700000",  # Video Games (includes consoles)
+        "gaming_consoles": "pcmcat1587395025973",  # PS5 Consoles (actual hardware)
         "smart_home": "pcmcat254000050002",  # Smart Home
         "tvs": "abcat0101000",  # TVs
         "speakers": "pcmcat241600050001"  # Bluetooth Speakers
