@@ -7,7 +7,7 @@
 help:
 	@echo "PIS Service - Available commands:"
 	@echo "  make install      - Install Python dependencies"
-	@echo "  make seed         - Seed database with Amazon data"
+	@echo "  make seed         - Seed database with Best Buy data"
 	@echo "  make run          - Start the FastAPI server"
 	@echo "  make test         - Run system tests"
 	@echo "  make test-system  - Run comprehensive system tests"
@@ -24,11 +24,11 @@ check-mongo:
 	@echo "Checking MongoDB connection..."
 	@python -c "from pymongo import MongoClient; client = MongoClient('mongodb://localhost:27017'); client.server_info(); print('✓ MongoDB is running')" || (echo "✗ MongoDB is not running. Please start it with: brew services start mongodb-community" && exit 1)
 
-# Seed database with real Amazon data (no synthetic data)
+# Seed database with real Best Buy data  
 seed: check-mongo
-	@echo "Seeding database with REAL Amazon product data (web scraping)..."
-	@echo "NOTE: This uses web scraping to get real products from Amazon"
-	python seed_amazon_data.py
+	@echo "Seeding database with REAL Best Buy product data..."
+	@echo "NOTE: This fetches real products from Best Buy API"
+	python seed_bestbuy_data.py
 
 # Run the FastAPI server
 run:
@@ -127,13 +127,13 @@ docker-run:
 db-backup:
 	@echo "Backing up database..."
 	@mkdir -p backups
-	@mongodump --db=pis_db --out=backups/backup_$$(date +%Y%m%d_%H%M%S)
+	@mongodump --db=pis_service --out=backups/backup_$$(date +%Y%m%d_%H%M%S)
 	@echo "Backup completed"
 
 db-restore:
 	@echo "Available backups:"
 	@ls -la backups/
-	@echo "To restore, run: mongorestore --db=pis_db backups/backup_TIMESTAMP/pis_db"
+	@echo "To restore, run: mongorestore --db=pis_service backups/backup_TIMESTAMP/pis_service"
 
 # Quick commands for development
 q-test: test-system  # Quick test alias

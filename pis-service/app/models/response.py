@@ -29,7 +29,7 @@ class ProductResponse(BaseModel):
     default_variant_id: Optional[str] = None
     specs: Dict[str, Any] = {}
     tags: List[str] = []
-    images: List[Dict[str, Any]] = []
+    images: Optional[List[Dict[str, Any]]] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     

@@ -168,18 +168,12 @@ function renderCategoryProducts(products) {
         product_id: product.product_id,
         brand: product.brand,
         model_name: product.model_name,
-        specs: product.specs,
-        spec_ranges: {
-            price: product.price_range || {min: 0, max: 0},
-            ram: product.specs.ram || 'N/A',
-            storage: product.specs.storage || 'N/A',
-            display: product.specs.display ? 
-                `${product.specs.display.size_in || product.specs.display}" ${product.specs.display.refresh_hz || ''}Hz` : 'N/A',
-            battery: product.specs.battery ? `${product.specs.battery.capacity_mah || product.specs.battery} mAh` : 'N/A',
-            charging: product.specs.charging || 'N/A'
-        },
-        score: Math.round(product.rating * 20) || 0,
-        explanation: `Rank #${product.popularity_rank} in category`
+        price_range: product.price_range || {min: 0, max: 0},
+        rating: product.rating,
+        category: product.category,
+        specs: product.specs || {},
+        score: Math.round((product.rating || 0) * 20) || 0,
+        popularity_rank: product.popularity_rank
     })).join('');
     
     // Add event listeners
@@ -270,6 +264,57 @@ function renderSearchResults(products) {
     });
 }
 
+function renderProductSpecs(specs) {
+    if (!specs) return '<p class="text-muted">No specifications available</p>';
+    
+    // Define priority specs to show
+    const prioritySpecs = ['brand', 'model_number', 'color', 'product_name'];
+    const specsToShow = [];
+    
+    // Add priority specs first
+    prioritySpecs.forEach(key => {
+        if (specs[key]) {
+            const label = key.replace(/_/g, ' ');
+            const value = key === 'product_name' && specs[key].length > 40 
+                ? specs[key].substring(0, 40) + '...' 
+                : specs[key];
+            specsToShow.push({ label, value });
+        }
+    });
+    
+    // Add other important specs if they exist and we have room
+    const additionalSpecs = ['screen_size', 'memory_storage_capacity', 'wireless_carrier'];
+    let specsAdded = specsToShow.length;
+    
+    for (const key of additionalSpecs) {
+        if (specsAdded >= 5) break; // Limit to 5 specs max
+        if (specs[key]) {
+            const label = key.replace(/_/g, ' ');
+            specsToShow.push({ label, value: specs[key] });
+            specsAdded++;
+        }
+    }
+    
+    // If we still don't have any specs, show the first few available
+    if (specsToShow.length === 0) {
+        const specKeys = Object.keys(specs).slice(0, 4);
+        specKeys.forEach(key => {
+            const label = key.replace(/_/g, ' ');
+            const value = specs[key].toString().length > 40 
+                ? specs[key].toString().substring(0, 40) + '...' 
+                : specs[key];
+            specsToShow.push({ label, value });
+        });
+    }
+    
+    return specsToShow.map(spec => `
+        <div class="spec-item">
+            <span class="spec-label">${spec.label}:</span>
+            <span>${spec.value}</span>
+        </div>
+    `).join('');
+}
+
 function createProductCard(product) {
     // All endpoints now use product_id consistently
     const productId = product.product_id;
@@ -291,26 +336,12 @@ function createProductCard(product) {
                             `$${product.spec_ranges.price.min} - $${product.spec_ranges.price.max}` : 
                             'Price N/A')}
                 </div>
-                <div class="specs-grid">
-                    ${product.rating ? `
-                        <div class="spec-item">
-                            <span class="spec-label">Rating:</span>
-                            <span>★ ${product.rating}</span>
-                        </div>
-                    ` : ''}
-                    ${product.category ? `
-                        <div class="spec-item">
-                            <span class="spec-label">Category:</span>
-                            <span>${product.category.replace(/_/g, ' ')}</span>
-                        </div>
-                    ` : ''}
-                    ${Object.entries(product.specs || {}).slice(0, 4).map(([key, value]) => `
-                        <div class="spec-item">
-                            <span class="spec-label">${key.replace(/_/g, ' ')}:</span>
-                            <span>${value}</span>
-                        </div>
-                    `).join('')}
-                </div>
+                ${product.specs && Object.keys(product.specs).length > 0 ? `
+                    <div class="specs-title">Product Details</div>
+                    <div class="specs-grid">
+                        ${renderProductSpecs(product.specs)}
+                    </div>
+                ` : ''}
             </div>
             <div class="product-actions">
                 <button class="btn btn-primary btn-sm btn-details">View Details</button>

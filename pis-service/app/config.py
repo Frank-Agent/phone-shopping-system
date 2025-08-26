@@ -6,8 +6,7 @@ class Settings(BaseSettings):
     database_name: str = "pis_service"
     port: int = 8000
     env: str = "development"
-    amazon_api_key: Optional[str] = ""
-    amazon_api_domain: str = "amazon.com"
+    bestbuy_api_key: Optional[str] = ""
     
     class Config:
         env_file = ".env"
