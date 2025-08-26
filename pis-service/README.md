@@ -1,6 +1,6 @@
 # Product Information Service (PIS)
 
-A comprehensive backend service for aggregating and serving real electronics product data including specifications, prices, availability, and reviews. Features a web portal for browsing and comparing products.
+A comprehensive backend service for aggregating and serving real electronics product data from Best Buy including specifications, prices, availability, and reviews. Features a web portal for browsing and comparing products.
 
 ## 🚀 Quick Start
 
@@ -8,8 +8,8 @@ A comprehensive backend service for aggregating and serving real electronics pro
 # 1. Install dependencies
 make install
 
-# 2. Restore database with 100 real Amazon products (instant)
-make restore
+# 2. Seed database with real Best Buy products
+make seed
 
 # 3. Run the API server
 make run
@@ -24,18 +24,18 @@ python server.py  # Runs on http://localhost:8080
 ### Core Functionality
 - **Product Search**: Search across 10 categories with filters for budget, brand, ratings
 - **Product Details**: View comprehensive specs, variants, and pricing
-- **Price Tracking**: Real-time pricing from Amazon via Rainforest API
+- **Price Tracking**: Real-time pricing from Best Buy API
 - **Review Aggregation**: Credibility-scored review summaries
 - **Product Comparison**: Side-by-side comparison of multiple products
 - **Favorites System**: Save and manage favorite products
 - **Categories**: Browse products by category (smartphones, laptops, tablets, etc.)
 
 ### Data
-- **100 Real Products**: Actual Amazon products across 10 categories
-- **Real Pricing**: Live prices fetched from Amazon API
-- **190 Variants**: Different SKUs and configurations
-- **261 Reviews**: Aggregated review data
-- **1043 Offers**: Multiple pricing options per product
+- **99 Real Products**: Actual Best Buy products across 10 categories
+- **Real Pricing**: Live prices fetched from Best Buy API
+- **99 Variants**: Different SKUs and configurations  
+- **Real Ratings**: Actual customer ratings from Best Buy
+- **99 Offers**: Direct Best Buy pricing per product
 
 ## 📦 What's Included
 

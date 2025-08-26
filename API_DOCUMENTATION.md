@@ -125,38 +125,35 @@ GET /search?query=galaxy&min_price=500&max_price=1000
 GET /reviews/product/{product_id}
 ```
 
-## Amazon Price Integration
+## Best Buy Price Integration
 
-The system can fetch real-time prices from Amazon using the Rainforest API.
+The system fetches real-time product data and prices from Best Buy using their official API.
 
-### Setup Amazon Pricing
+### Setup Best Buy Integration
 
-1. **Sign up for Rainforest API**
-   - Visit https://www.rainforestapi.com/
-   - Create an account and get your API key
+1. **Get Best Buy API Key**
+   - Visit https://developer.bestbuy.com/
+   - Create an account and get your API key (free)
 
 2. **Configure Environment**
    ```bash
    # Add to pis-service/.env
-   AMAZON_API_KEY=your-api-key-here
-   AMAZON_API_DOMAIN=amazon.com  # or amazon.co.uk, etc.
+   BESTBUY_API_KEY=your-api-key-here
    ```
 
 3. **How It Works**
-   - When seeding data, the system attempts to fetch real Amazon prices
-   - If API key is set, it queries Amazon for current prices
-   - If no API key or request fails, it uses default prices
+   - The seed script fetches real product data from Best Buy API
+   - Includes products from 10 categories (smartphones, laptops, tablets, etc.)
+   - Retrieves actual pricing, availability, and product specifications
+   - Implements throttling to respect API rate limits
 
-### Testing Amazon Integration
+### Seed Database with Best Buy Products
 
-Run the test script:
 ```bash
-# Without API key (mock mode)
-python3 test_amazon_pricing.py
+# Seed with real Best Buy data
+make seed
 
-# With API key
-export AMAZON_API_KEY='your-key'
-python3 test_amazon_pricing.py
+# This will fetch ~100 products across 10 categories
 ```
 
 ## Using the API with curl
