@@ -39,4 +39,4 @@ coverage.xml
 *.cover
 
 # Logs
-*.log
+*.log.env

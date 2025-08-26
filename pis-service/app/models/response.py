@@ -37,15 +37,15 @@ class ProductResponse(BaseModel):
     default_variant_id: Optional[str] = None
     specs: Dict[str, Any] = {}
     tags: List[str] = []
-    images: Optional[List[Any]] = []  # Changed type for flexibility
-    feature_bullets: Optional[List[str]] = []  # Added from scraping
-    technical_details: Optional[Dict[str, Any]] = {}  # Added from scraping
-    variant_options: Optional[List[ProductVariant]] = []  # Added from scraping
-    dimensions: Optional[Dict[str, Any]] = {}  # Added from scraping
-    url: Optional[str] = None  # Added Amazon URL
-    is_prime: Optional[bool] = None  # Added from API
-    is_amazon_choice: Optional[bool] = None  # Added from API
-    is_best_seller: Optional[bool] = None  # Added from API
+    images: Optional[List[Any]] = []  # Flexible type for different image formats
+    feature_bullets: Optional[List[str]] = []  # Added for product features
+    technical_details: Optional[Dict[str, Any]] = {}  # Technical specifications
+    variant_options: Optional[List[ProductVariant]] = []  # Product variants
+    dimensions: Optional[Dict[str, Any]] = {}  # Physical dimensions
+    url: Optional[str] = None  # Product URL
+    is_prime: Optional[bool] = None  # Prime eligibility
+    is_amazon_choice: Optional[bool] = None  # Amazon's Choice badge
+    is_best_seller: Optional[bool] = None  # Best seller status
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
