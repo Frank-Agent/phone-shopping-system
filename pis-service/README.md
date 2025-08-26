@@ -106,10 +106,10 @@ AMAZON_API_DOMAIN=amazon.com      # Optional: Amazon domain
 ```
 
 ### Amazon API Integration
-To enable real-time pricing from Amazon:
+To enable real-time pricing and better model aggregation from Amazon:
 1. Get an API key from [Rainforest API](https://www.rainforestapi.com/)
 2. Add to `.env` file: `AMAZON_API_KEY=your_key_here`
-3. Run `make seed` to fetch fresh data with live prices
+3. Run `make seed` to fetch fresh data with live prices and improved product results
 
 ## 📊 Database Schema
 

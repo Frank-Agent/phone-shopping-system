@@ -85,8 +85,10 @@ CATEGORY_MAPPING = {
 
 class AmazonScraper:
     """Scraper for Amazon product data using web scraping as fallback"""
-    
+
     def __init__(self):
+        self.api_key = os.getenv("AMAZON_API_KEY", "")
+        self.api_domain = os.getenv("AMAZON_API_DOMAIN", "amazon.com")
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -97,26 +99,23 @@ class AmazonScraper:
         self.client = httpx.AsyncClient(headers=self.headers, timeout=30.0)
         
     async def search_products(self, category: str, search_term: str, max_products: int = 10) -> List[Dict]:
-        """Search for products on Amazon"""
-        products = []
-        
-        # Build search URL
+        """Search for products using Rainforest API when available, otherwise scrape Amazon"""
+        if self.api_key:
+            return await self._search_rainforest(category, search_term, max_products)
+
+        products: List[Dict] = []
         search_url = f"https://www.amazon.com/s?k={search_term.replace(' ', '+')}&ref=nb_sb_noss"
-        
+
         try:
-            # Add random delay to avoid rate limiting
             await asyncio.sleep(random.uniform(1, 3))
-            
             response = await self.client.get(search_url)
             if response.status_code != 200:
                 logger.warning(f"Got status {response.status_code} for category {category}")
                 return products
-                
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Find product cards
             product_cards = soup.find_all('div', {'data-component-type': 's-search-result'})
-            
+
             for card in product_cards[:max_products]:
                 try:
                     product = self._extract_product_from_card(card, category)
@@ -125,12 +124,59 @@ class AmazonScraper:
                 except Exception as e:
                     logger.error(f"Error extracting product: {e}")
                     continue
-                    
+
             logger.info(f"Found {len(products)} products for category {category}")
-            
+
         except Exception as e:
             logger.error(f"Error searching products for {category}: {e}")
-            
+
+        return products
+
+    async def _search_rainforest(self, category: str, search_term: str, max_products: int) -> List[Dict]:
+        """Search Amazon products via Rainforest API for better aggregation"""
+        products: List[Dict] = []
+        params = {
+            "api_key": self.api_key,
+            "type": "search",
+            "amazon_domain": self.api_domain,
+            "search_term": search_term,
+        }
+
+        try:
+            response = await self.client.get("https://api.rainforestapi.com/request", params=params)
+            if response.status_code != 200:
+                logger.warning(f"Rainforest API status {response.status_code} for category {category}")
+                return products
+
+            data = response.json()
+            for result in data.get("search_results", [])[:max_products]:
+                price = result.get("price", {}).get("value")
+                product = {
+                    "asin": result.get("asin"),
+                    "name": result.get("title"),
+                    "brand": result.get("brand"),
+                    "model_name": self._extract_model(result.get("title", "")),
+                    "category": category,
+                    "description": result.get("title"),
+                    "price_range": {
+                        "min": price,
+                        "max": price,
+                        "currency": result.get("price", {}).get("currency", "USD"),
+                    } if price is not None else None,
+                    "rating": result.get("rating"),
+                    "image_url": result.get("image"),
+                    "specs": {},
+                    "tags": [],
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now(),
+                }
+                products.append(product)
+
+            logger.info(f"Found {len(products)} products via Rainforest API for category {category}")
+
+        except Exception as e:
+            logger.error(f"Rainforest API error for {category}: {e}")
+
         return products
     
     def _extract_product_from_card(self, card, category: str) -> Optional[Dict]:
