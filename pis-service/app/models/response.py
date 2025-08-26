@@ -12,6 +12,13 @@ class PriceRange(BaseModel):
             return 0
         return int(round(float(v)))
 
+class ProductVariant(BaseModel):
+    asin: str
+    title: str
+    is_available: bool = True
+    link: Optional[str] = None
+    dimensions: Optional[Dict[str, str]] = {}
+
 class ProductResponse(BaseModel):
     product_id: str = Field(alias="_id")
     name: str
@@ -19,17 +26,26 @@ class ProductResponse(BaseModel):
     category: str
     brand: str
     series: Optional[str] = None
-    model_name: str
+    model_name: Optional[str] = None  # Made optional
     image_url: Optional[str] = None
     asin: Optional[str] = None
     release_date: Optional[datetime] = None
     price_range: Optional[PriceRange] = None
     rating: Optional[float] = None
+    ratings_total: Optional[int] = None  # Added from scraping
     popularity_rank: Optional[int] = None
     default_variant_id: Optional[str] = None
     specs: Dict[str, Any] = {}
     tags: List[str] = []
-    images: List[Dict[str, Any]] = []
+    images: Optional[List[Any]] = []  # Changed type for flexibility
+    feature_bullets: Optional[List[str]] = []  # Added from scraping
+    technical_details: Optional[Dict[str, Any]] = {}  # Added from scraping
+    variant_options: Optional[List[ProductVariant]] = []  # Added from scraping
+    dimensions: Optional[Dict[str, Any]] = {}  # Added from scraping
+    url: Optional[str] = None  # Added Amazon URL
+    is_prime: Optional[bool] = None  # Added from API
+    is_amazon_choice: Optional[bool] = None  # Added from API
+    is_best_seller: Optional[bool] = None  # Added from API
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
@@ -45,6 +61,15 @@ class ProductResponse(BaseModel):
             return None
         if isinstance(v, dict):
             return PriceRange(min=v.get('min', 0), max=v.get('max', 0))
+        return v
+    
+    @validator('variant_options', pre=True)
+    def convert_variant_options(cls, v):
+        if not v:
+            return []
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            # Convert dict to ProductVariant if needed
+            return [ProductVariant(**item) if isinstance(item, dict) else item for item in v]
         return v
     
     @validator('specs', pre=True)

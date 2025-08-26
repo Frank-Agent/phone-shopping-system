@@ -7,7 +7,9 @@
 help:
 	@echo "PIS Service - Available commands:"
 	@echo "  make install      - Install Python dependencies"
-	@echo "  make seed         - Seed database with Amazon data"
+	@echo "  make restore      - Restore database from dump (fastest - recommended)"
+	@echo "  make seed         - Seed database with Amazon data (web scraping)"
+	@echo "  make store        - Create database dump for git storage"
 	@echo "  make run          - Start the FastAPI server"
 	@echo "  make test         - Run system tests"
 	@echo "  make test-system  - Run comprehensive system tests"
@@ -24,7 +26,13 @@ check-mongo:
 	@echo "Checking MongoDB connection..."
 	@python -c "from pymongo import MongoClient; client = MongoClient('mongodb://localhost:27017'); client.server_info(); print('✓ MongoDB is running')" || (echo "✗ MongoDB is not running. Please start it with: brew services start mongodb-community" && exit 1)
 
-# Seed database with real Amazon data (no synthetic data)
+# Restore database from included dump (fastest way to get data)
+restore: check-mongo
+	@echo "Restoring database from included dump..."
+	mongorestore --db=pis_service --archive=pis_service_dump.archive
+	@echo "✓ Database restored with 100 real Amazon products"
+
+# Seed database with real Amazon data (web scraping - slower)
 seed: check-mongo
 	@echo "Seeding database with REAL Amazon product data (web scraping)..."
 	@echo "NOTE: This uses web scraping to get real products from Amazon"
@@ -134,6 +142,14 @@ db-restore:
 	@echo "Available backups:"
 	@ls -la backups/
 	@echo "To restore, run: mongorestore --db=pis_db backups/backup_TIMESTAMP/pis_db"
+
+# Store database dump for git (excludes sensitive data)
+store:
+	@echo "Creating database dump for git storage..."
+	@mongodump --db=pis_service --archive=db_dump.archive
+	@echo "✓ Database dump created: db_dump.archive"
+	@echo "✓ This file can be committed to git for data persistence"
+	@echo "To restore: mongorestore --db=pis_service --archive=db_dump.archive"
 
 # Quick commands for development
 q-test: test-system  # Quick test alias

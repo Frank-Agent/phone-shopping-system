@@ -110,7 +110,7 @@ async def search_products(
             product_id=str(product_id),
             category=product.get("category"),
             brand=product["brand"],
-            model_name=product["model_name"],
+            model_name=product.get("model_name", product.get("name", "Unknown")),
             price_range=final_price_range,
             rating=product.get("rating"),
             popularity_rank=product.get("popularity_rank"),

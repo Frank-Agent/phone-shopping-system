@@ -21,7 +21,7 @@ async def get_review_summary(product_id: str) -> Dict[str, Any]:
     if not reviews:
         return {
             "product_id": product_id,
-            "model_name": product["model_name"],
+            "model_name": product.get("model_name", product.get("name", "Unknown")),
             "coverage_level": "none",
             "message": "No reviews available for this product",
             "reviews": []
@@ -76,7 +76,7 @@ async def get_review_summary(product_id: str) -> Dict[str, Any]:
     
     return {
         "product_id": product_id,
-        "model_name": product["model_name"],
+        "model_name": product.get("model_name", product.get("name", "Unknown")),
         "coverage_level": coverage_level,
         "average_rating": round(avg_rating, 1),
         "average_credibility": round(avg_credibility, 2),

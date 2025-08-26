@@ -278,10 +278,15 @@ function createProductCard(product) {
     
     return `
         <div class="product-card" data-product-id="${productId}">
+            ${product.image_url ? `
+                <div class="product-image">
+                    <img src="${product.image_url}" alt="${product.model_name || product.name}" style="width: 100%; max-height: 150px; object-fit: contain;">
+                </div>
+            ` : ''}
             <div class="product-header">
-                <div class="product-score">${Math.round(product.score)}</div>
-                <h3 class="product-title">${product.model_name}</h3>
-                <p class="product-brand">${product.brand}</p>
+                <div class="product-score">${Math.round(product.score || 0)}</div>
+                <h3 class="product-title">${product.model_name || product.name || 'Unknown'}</h3>
+                <p class="product-brand">${product.brand || 'Unknown Brand'}</p>
             </div>
             <div class="product-body">
                 <div class="price-range">
@@ -415,10 +420,61 @@ function renderProductModal(product, reviews) {
     
     modalContent.innerHTML = `
         <div class="modal-header">
-            <h2>${product.brand} ${product.model_name}</h2>
+            <h2>${product.brand || ''} ${product.model_name || product.name || ''}</h2>
             ${product.release_date ? `<p>Released: ${new Date(product.release_date).toLocaleDateString()}</p>` : ''}
         </div>
         <div class="modal-body">
+            ${product.images && product.images.length > 0 ? `
+            <div class="product-images" style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0;">
+                    ${product.images.slice(0, 5).map(img => `
+                        <img src="${img}" style="height: 100px; object-fit: contain; cursor: pointer;" 
+                             onclick="this.style.height = this.style.height === '100px' ? '300px' : '100px'">
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            ${product.description ? `
+            <div class="description-section" style="margin-bottom: 20px;">
+                <h3>Description</h3>
+                <p>${product.description.substring(0, 500)}${product.description.length > 500 ? '...' : ''}</p>
+            </div>
+            ` : ''}
+            
+            ${product.feature_bullets && product.feature_bullets.length > 0 ? `
+            <div class="features-section" style="margin-bottom: 20px;">
+                <h3>Key Features</h3>
+                <ul>
+                    ${product.feature_bullets.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            ${product.variant_options && product.variant_options.length > 0 ? `
+            <div class="variants-section" style="margin-bottom: 20px;">
+                <h3>Available Variants</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
+                    ${product.variant_options.slice(0, 12).map(variant => `
+                        <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">${variant.title || 'Variant'}</div>
+                            ${variant.dimensions ? `
+                                <div style="font-size: 0.9em; color: #666;">
+                                    ${variant.dimensions.color ? `Color: ${variant.dimensions.color}<br>` : ''}
+                                    ${variant.dimensions.size ? `Storage: ${variant.dimensions.size}<br>` : ''}
+                                </div>
+                            ` : ''}
+                            ${variant.link ? `
+                                <a href="${variant.link}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 0.9em;">
+                                    View on Amazon →
+                                </a>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
             <div class="specs-section">
                 <h3>Specifications</h3>
                 <div class="specs-grid">
@@ -573,7 +629,7 @@ async function renderCompareView() {
                             <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--border); width: 200px;">Feature</th>
                             ${products.map(p => `
                                 <th style="padding: 1rem; text-align: center; border-bottom: 2px solid var(--border);">
-                                    <div>${p.brand} ${p.model_name}</div>
+                                    <div>${p.brand || ''} ${p.model_name || p.name || ''}</div>
                                     <button onclick="removeFromCompare('${p.product_id}')" style="margin-top: 0.5rem; color: var(--danger); border: none; background: none; cursor: pointer;">✕ Remove</button>
                                 </th>
                             `).join('')}
